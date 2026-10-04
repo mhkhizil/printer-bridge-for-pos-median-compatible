@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Auto-launch hint only: the app still enumerates UsbManager.deviceList at
+      runtime, so printers that are not listed here can still be discovered.
+      Add vendor IDs (decimal) for your specific receipt printer models.
+    -->
+    <usb-device class="7" />            <!-- USB printer class -->
+    <usb-device vendor-id="1208" />     <!-- 0x04B8 Epson -->
+    <usb-device vendor-id="1305" />     <!-- 0x0519 Star Micronics -->
+    <usb-device vendor-id="5380" />     <!-- 0x1504 Bixolon -->
+    <usb-device vendor-id="2655" />     <!-- 0x0A5F Zebra -->
+    <usb-device vendor-id="6790" />     <!-- 0x1A86 QinHeng (CH340) -->
+    <usb-device vendor-id="1659" />     <!-- 0x067B Prolific PL2303 -->
+    <usb-device vendor-id="1046" />     <!-- 0x0416 Winbond -->
+    <usb-device vendor-id="1155" />     <!-- 0x0483 STMicro -->
+</resources>
