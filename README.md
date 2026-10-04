@@ -1,5 +1,7 @@
 # Vision POS — Android print bridge
 
+> **Handoff notes:** see [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) for build/run steps and known limitations.
+
 A tiny Android **WebView shell** that gives the Vision POS web app the same silent
 raw-ESC/POS printing it already has on desktop via QZ Tray — **on Android**, over
 Wi‑Fi (`host:9100`), USB (OTG) and Bluetooth.
