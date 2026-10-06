@@ -26,13 +26,18 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages
+      # GitHub's ubuntu runners ship the Android SDK and cmdline-tools, so install the
+      # exact packages this project targets. A third-party setup action is avoided on
+      # purpose: they break whenever Google moves the cmdline-tools download URLs.
+      - name: Install required SDK packages
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n 1)"
+          fi
+          echo "using $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
 
       # The release build is included on purpose: it runs R8 and resource
       # shrinking, which is what proves the keep rules for the JS bridge work.
