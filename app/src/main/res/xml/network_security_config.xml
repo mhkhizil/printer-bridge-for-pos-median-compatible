@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is disabled, because the POS is served over HTTPS. Raw printer
+  sockets (Wi-Fi port 9100, USB, Bluetooth) are plain java.net.Socket connections
+  and are not affected by this policy.
+
+  To allow a plain-HTTP POS, for example a local dev server, add a domain-config:
+      <domain-config cleartextTrafficPermitted="true">
+          <domain includeSubdomains="true">192.168.1.50</domain>
+      </domain-config>
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

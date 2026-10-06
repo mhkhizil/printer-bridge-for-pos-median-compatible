@@ -11,6 +11,11 @@ captures/
 *.ap_
 *.dex
 
+# Signing secrets: never commit
+keystore.properties
+*.jks
+*.keystore
+
 # IDE
 .idea/
 *.iml
@@ -20,3 +25,7 @@ captures/
 
 # Kotlin
 .kotlin/
+
+# Local distribution artefacts (built APK, install QR)
+dist/
+*.log

@@ -1,6 +1,21 @@
-# The JavaScript bridge is resolved by name from the WebView, so keep it intact
-# if you ever enable minification for the release build.
+# --- JavaScript bridge -------------------------------------------------------
+# The bridge is resolved BY NAME from the WebView, so its members must survive R8,
+# and every @JavascriptInterface method must keep its name + signature.
+-keep class com.vision.pos.printer.bridge.NativePrinterBridge { *; }
 -keepclassmembers class com.vision.pos.printer.bridge.NativePrinterBridge {
     public *;
 }
--keep class com.vision.pos.printer.bridge.NativePrinterBridge { *; }
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes *Annotation*
+-keepattributes JavascriptInterface
+
+# --- WebView / AndroidX ------------------------------------------------------
+-keepclassmembers class * extends android.webkit.WebViewClient {
+    public void *(android.webkit.WebView, java.lang.String, android.graphics.Bitmap);
+    public boolean *(android.webkit.WebView, java.lang.String);
+}
+-keepclassmembers class * extends android.webkit.WebView {
+    public *;
+}

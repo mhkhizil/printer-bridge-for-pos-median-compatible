@@ -1,0 +1,29 @@
+# Normalise text files to LF in the repository, so Windows and Unix checkouts
+# produce the same diffs.
+* text=auto
+
+# Sources and docs are text. Without this, git may decide a file is binary and
+# refuse to diff it.
+*.kt text
+*.kts text
+*.gradle text
+*.pro text
+*.properties text
+*.md text
+*.xml text
+*.yml text
+*.yaml text
+
+# Windows batch files need CRLF to run correctly.
+*.bat text eol=crlf
+
+# Binaries: never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.jar binary
+*.jks binary
+*.keystore binary
+*.apk binary
+*.aab binary

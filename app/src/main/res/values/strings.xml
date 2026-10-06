@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Vision POS Print</string>
+    <string name="app_name">Linkit POS</string>
+
+    <!-- Shown when the POS page itself cannot be loaded (offline / server down). -->
+    <string name="error_title">Can\'t reach the POS</string>
+    <string name="error_body">Check the internet connection on this device, then try again.</string>
+    <string name="error_retry">Retry</string>
+
+    <!-- Hidden maintenance menu (long-press the top edge of the screen). -->
+    <string name="admin_reload">Reload POS</string>
+    <string name="admin_clear_cache">Clear cache &amp; reload</string>
 </resources>

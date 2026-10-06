@@ -24,15 +24,29 @@ class NativePrinterBridge(
     private val webView: WebView,
     private val manager: PrinterManager,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(job + Dispatchers.IO)
 
+    /**
+     * Cancels in-flight work. Call from the host's `onDestroy` so nothing keeps
+     * running (or evaluates JS) against a dead WebView.
+     */
+    fun dispose() {
+        job.cancel()
+    }
+
+    /**
+     * connect/disconnect have nothing to configure, because each transport opens its
+     * own link per job. The parameter is ignored but kept so the signature still
+     * matches the `median.posPrinter` contract.
+     */
     @JavascriptInterface
-    fun connect(requestId: String, optionsJson: String) {
+    fun connect(requestId: String, @Suppress("UNUSED_PARAMETER") optionsJson: String) {
         run(requestId) { success() }
     }
 
     @JavascriptInterface
-    fun disconnect(requestId: String, optionsJson: String) {
+    fun disconnect(requestId: String, @Suppress("UNUSED_PARAMETER") optionsJson: String) {
         run(requestId) { success() }
     }
 

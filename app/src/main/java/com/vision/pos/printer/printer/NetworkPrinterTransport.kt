@@ -5,11 +5,7 @@ import java.net.Socket
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Raw ESC/POS over TCP (AppSocket / "port 9100"). This is the transport an
- * Android browser can never provide, and the Android equivalent of what QZ Tray
- * does on desktop.
- */
+/** Raw ESC/POS over TCP, the protocol receipt printers expose on port 9100. */
 class NetworkPrinterTransport {
 
     suspend fun print(host: String?, port: Int?, bytes: ByteArray) = withContext(Dispatchers.IO) {
