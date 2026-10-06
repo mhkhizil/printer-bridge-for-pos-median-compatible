@@ -17,6 +17,10 @@ Requirements: JDK 17+, Android SDK with `platforms;android-34` and
 
 On Unix, make the wrapper executable first: `chmod +x gradlew`.
 
+Every push and pull request builds the debug and release APKs in GitHub Actions
+(`.github/workflows/android.yml`). The release build is part of CI on purpose: it runs
+R8 and resource shrinking, so a broken keep rule for the JS bridge fails the build.
+
 ## What to check before opening a pull request
 
 Printing cannot be covered by unit tests, so a PR that touches a transport should

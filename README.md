@@ -1,5 +1,7 @@
 # POS Android print bridge
 
+[![Android CI](https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/actions/workflows/android.yml/badge.svg)](https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/actions/workflows/android.yml)
+
 An Android WebView shell that loads a POS web app and gives it silent, raw ESC/POS
 printing over Wi-Fi, USB (OTG) and Bluetooth. No Android print dialog and no "share
 to printer" detour: the page hands over a base64 ESC/POS byte stream and those bytes

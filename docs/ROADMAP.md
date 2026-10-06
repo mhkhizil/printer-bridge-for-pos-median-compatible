@@ -47,6 +47,5 @@ not pinned, so a very large system font scale can distort the POS layout.
 - Handle main-frame 5xx responses with the offline screen (`onReceivedHttpError`).
 - A self test in the maintenance menu that prints a short sample and cuts.
 - Predictive back support (`android:enableOnBackInvokedCallback`) and polish for it.
-- A GitHub Actions workflow that builds the debug APK on push and pull requests.
 - An iOS sibling exposing the same JS contract (NetworkExtension for TCP,
   ExternalAccessory for USB, CoreBluetooth for Bluetooth).
