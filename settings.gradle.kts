@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "vision-pos-android-print-bridge"
+rootProject.name = "printer-bridge-for-pos-median-compatible"
 include(":app")

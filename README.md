@@ -46,8 +46,8 @@ convention used by the Median.co GoNative JavaScript bridge.
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/vision-pos-android-print-bridge.git
-cd vision-pos-android-print-bridge
+git clone https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible.git
+cd printer-bridge-for-pos-median-compatible
 ```
 
 Create `local.properties` in the project root (it is git-ignored):
