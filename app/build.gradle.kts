@@ -50,10 +50,10 @@ android {
         //   1.0.2 = on-demand reload button, responsive layout shim
         //   1.0.3 = recovery and printing hardening: renderer-dead retry, shared Bluetooth
         //           permission request, bridge promise/id fixes, USB interface lookup,
-        //           BLE link-drop reporting, no BLE reprint after a failed SPP write;
-        //           landscape-only UI from launch
-        versionCode = 4
-        versionName = "1.0.3"
+        //           BLE link-drop reporting, no BLE reprint after a failed SPP write
+        //   1.0.4 = landscape-locked UI from launch
+        versionCode = 5
+        versionName = "1.0.4"
 
         // Surfaced to the WebView as BuildConfig.POS_URL; see `posUrl` above.
         buildConfigField("String", "POS_URL", "\"$posUrl\"")
