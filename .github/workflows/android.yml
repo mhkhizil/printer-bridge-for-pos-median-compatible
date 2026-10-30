@@ -1,10 +1,27 @@
 name: Android CI
 
+# On every push to main this builds the APKs and republishes the rolling
+# "latest" GitHub release, so the newest installable APK is always one stable
+# link away and nobody has to build locally:
+#
+#   https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-debug.apk
+#
+# Pull requests build and upload the APK as a run artifact only.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      pos_url:
+        description: "POS URL baked into this build (blank: use the POS_URL repository variable)"
+        required: false
+        default: ""
+
+# A newer push replaces a queued build of the same branch instead of stacking up.
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,6 +31,19 @@ jobs:
     name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 25
+
+    env:
+      # Baked into BuildConfig.POS_URL. Resolution in app/build.gradle.kts is
+      # -PposUrl, POS_URL, local.properties; only the middle one exists here.
+      POS_URL: ${{ inputs.pos_url || vars.POS_URL }}
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+    outputs:
+      version_name: ${{ steps.version.outputs.name }}
+      version_code: ${{ steps.version.outputs.code }}
 
     steps:
       - name: Check out
@@ -39,14 +69,109 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Read version from Gradle
+        id: version
+        run: |
+          NAME="$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          CODE="$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)"
+          test -n "$NAME" && test -n "$CODE"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Linkit POS $NAME ($CODE)"
+
+      # Optional: a release keystore makes the release APK installable and
+      # upgradable over earlier installs. Without these secrets the build still
+      # succeeds; the release APK is then unsigned (the debug APK always works).
+      - name: Restore release keystore
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret: the release APK will be unsigned."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > release.jks
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+          echo "Release keystore restored."
+
       # The release build is included on purpose: it runs R8 and resource
       # shrinking, which is what proves the keep rules for the JS bridge work.
       - name: Build debug and release APKs
         run: ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Upload debug APK
+      # Stable file names keep the release download URLs permanent.
+      - name: Collect APKs
+        run: |
+          mkdir -p ci
+          cp app/build/outputs/apk/debug/app-debug.apk ci/LinkitPOS-debug.apk
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk ci/LinkitPOS-release.apk
+          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp app/build/outputs/apk/release/app-release-unsigned.apk \
+              ci/LinkitPOS-release-unsigned.apk
+          fi
+          ls -lh ci
+
+      - name: Upload APKs as run artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: LinkitPOS-apk
+          path: ci/*.apk
           if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish latest APK
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download built APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: LinkitPOS-apk
+          path: apk
+
+      # One rolling release under the moving "latest" tag. Recreating it (instead
+      # of adding a release per commit) keeps /releases/latest/download/<file>
+      # pointing at the newest APK forever.
+      - name: Publish rolling "latest" release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
+          POS_URL_VALUE: ${{ inputs.pos_url || vars.POS_URL }}
+        run: |
+          REPO="$GITHUB_REPOSITORY"
+
+          cat > notes.md <<EOF
+          Built automatically from \`${GITHUB_SHA:0:7}\` on \`${GITHUB_REF_NAME}\`.
+
+          - Version: **${VERSION_NAME}** (versionCode ${VERSION_CODE})
+          - POS URL baked in: \`${POS_URL_VALUE}\`
+          - Build log: ${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}
+
+          | File | Use |
+          | --- | --- |
+          | \`LinkitPOS-debug.apk\` | Always installable (debug key) |
+          | \`LinkitPOS-release.apk\` | Signed release build, only when the keystore secrets are configured |
+
+          **Installing over an older copy:** this APK is signed with a different key
+          than a build made on your own machine, so uninstall the old app once
+          before installing this one.
+          EOF
+
+          gh release delete latest --repo "$REPO" --yes --cleanup-tag || true
+          gh release create latest apk/*.apk \
+            --repo "$REPO" \
+            --target "$GITHUB_SHA" \
+            --title "Latest build ${VERSION_NAME} (${VERSION_CODE})" \
+            --notes-file notes.md
+          gh release view latest --repo "$REPO"

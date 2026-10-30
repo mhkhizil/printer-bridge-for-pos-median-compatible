@@ -189,9 +189,58 @@ keytool -genkeypair -v -keystore release.jks -storetype PKCS12 \
   -keyalg RSA -keysize 2048 -validity 10000 -alias <your-alias>
 ```
 
-Bump `versionCode` (and `versionName`) in `app/build.gradle.kts` for every upload. The
-launcher icon is an adaptive icon (`mipmap-anydpi-v26/`) with PNG fallbacks for API 24
-and 25; `store-assets/` holds the 512x512 versions used for store listings.
+Bump `versionCode` (and `versionName`) in `app/build.gradle.kts` for every upload.
+
+## Automated builds (GitHub Actions)
+
+`.github/workflows/android.yml` builds the APKs on every push, so a fresh
+installable build no longer has to be made on a laptop. On `main` it also
+republishes the rolling **Latest build** release, and these links never change:
+
+```
+https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-debug.apk
+https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-release.apk
+```
+
+| Trigger | What happens |
+| --- | --- |
+| push to `main` | debug + release APKs built, artifact uploaded, rolling release refreshed |
+| pull request | debug + release APKs built, artifact uploaded for inspection only |
+| manual run | same as a push; the `pos_url` input overrides the baked-in URL |
+
+The APK records the POS URL it was built with, so CI needs one. Set it once as a
+repository variable (Settings > Secrets and variables > Actions > Variables):
+
+```
+POS_URL = https://your-pos.example.com
+```
+
+Two optional secrets make the release APK signed as well. Without them the release
+APK is unsigned, but `LinkitPOS-debug.apk` is always installable:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 release.jks` (the keystore file itself) |
+| `ANDROID_KEYSTORE_PASSWORD` | the `storePassword` from `keystore.properties` |
+| `ANDROID_KEY_ALIAS` | the `keyAlias` |
+| `ANDROID_KEY_PASSWORD` | the `keyPassword` |
+
+A CI-built APK is signed with a different key than a locally built one, so uninstall
+the old app once before installing the first CI build. Builds coming from CI install
+over each other normally.
+
+## Branding
+
+`logos/logo.png` is the only artwork in the project. Everything else is generated
+from it by `python tools/generate-icons.py` (Pillow is the only requirement), so the
+logo is never hand-copied into per-density folders:
+
+- launcher icon: adaptive icon (`mipmap-anydpi-v26/`) with a monochrome layer for
+  Android 13 themed icons, plus rounded/square PNG fallbacks for API 24 and 25
+- splash: the logo on brand navy, through `drawable/launch_background.xml` for API
+  24-30 and the Android 12+ system splash screen in `res/values-v31/themes.xml`
+- in-app: the same logo above the loading spinner and on the offline screen
+- `store-assets/`: opaque 512x512 versions for store listings
 
 ## Installing on several tablets
 

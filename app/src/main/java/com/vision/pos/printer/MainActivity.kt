@@ -22,7 +22,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.ImageButton
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -40,6 +39,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import com.vision.pos.printer.bridge.NativePrinterBridge
 import com.vision.pos.printer.bridge.PosPrinterShim
+import com.vision.pos.printer.bridge.ResponsiveLayoutShim
 import com.vision.pos.printer.printer.PrinterManager
 
 /**
@@ -54,7 +54,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var bridge: NativePrinterBridge
-    private lateinit var loading: ProgressBar
+
+    /** The loading overlay (logo + spinner); see `@id/loading` in activity_main.xml. */
+    private lateinit var loading: View
     private lateinit var errorView: View
     private lateinit var errorMessage: TextView
     private lateinit var refreshButton: ImageButton
@@ -140,7 +142,9 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true
             databaseEnabled = true
             useWideViewPort = true
-            loadWithOverviewMode = true
+            // The POS declares width=device-width. Let its responsive layout use
+            // the actual window instead of zooming out to fit an overflowing pane.
+            loadWithOverviewMode = false
             mediaPlaybackRequiresUserGesture = false
             cacheMode = WebSettings.LOAD_DEFAULT
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
@@ -172,6 +176,7 @@ class MainActivity : AppCompatActivity() {
                 mainFrameFailed = false
                 view.evaluateJavascript(PosPrinterShim.JS, null)
                 view.evaluateJavascript(OVERSCROLL_CSS, null)
+                view.evaluateJavascript(ResponsiveLayoutShim.JS, null)
                 showLoading()
             }
 
@@ -179,6 +184,7 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 view.evaluateJavascript(PosPrinterShim.JS, null)
                 view.evaluateJavascript(OVERSCROLL_CSS, null)
+                view.evaluateJavascript(ResponsiveLayoutShim.JS, null)
                 if (!mainFrameFailed) hideLoading()
                 verifyRendered(view)
             }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cold-start background for API 24-30 (API 31+ uses the system splash screen in
+     values-v31/themes.xml). Brand navy with the LK logo centred, so the launcher
+     never flashes a plain black window before the WebView paints. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:drawable="@color/ic_launcher_background" />
+
+    <item
+        android:width="140dp"
+        android:height="116dp"
+        android:gravity="center">
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/logo" />
+    </item>
+</layer-list>
