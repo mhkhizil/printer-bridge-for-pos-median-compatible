@@ -6,6 +6,7 @@ import android.webkit.WebView
 import com.vision.pos.printer.printer.PrinterManager
 import com.vision.pos.printer.printer.PrinterTransport
 import com.vision.pos.printer.util.Base64Util
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,11 +28,16 @@ class NativePrinterBridge(
     private val job = SupervisorJob()
     private val scope = CoroutineScope(job + Dispatchers.IO)
 
+    /** Set by [dispose] so no reply is evaluated against a destroyed WebView. */
+    @Volatile
+    private var disposed = false
+
     /**
      * Cancels in-flight work. Call from the host's `onDestroy` so nothing keeps
      * running (or evaluates JS) against a dead WebView.
      */
     fun dispose() {
+        disposed = true
         job.cancel()
     }
 
@@ -66,15 +72,16 @@ class NativePrinterBridge(
             val payload = options(optionsJson)
             val transport = PrinterTransport.fromWire(payload.optString("transport"))
                 ?: error("printRaw requires a transport (NETWORK, USB or BLUETOOTH)")
-            val dataBase64 = payload.optString("dataBase64")
-            require(dataBase64.isNotEmpty()) { "printRaw requires dataBase64" }
+            val dataBase64 = requireNotNull(payload.stringOrNull("dataBase64")) {
+                "printRaw requires dataBase64"
+            }
 
             val bytes = Base64Util.decode(dataBase64)
             manager.printRaw(
                 transport = transport,
-                host = payload.optString("host").takeIf { it.isNotBlank() },
+                host = payload.stringOrNull("host"),
                 port = if (payload.has("port")) payload.optInt("port") else null,
-                deviceId = payload.optString("deviceId").takeIf { it.isNotBlank() },
+                deviceId = payload.stringOrNull("deviceId"),
                 bytes = bytes,
             )
             JSONObject().put("success", true).put("bytes", bytes.size)
@@ -86,10 +93,21 @@ class NativePrinterBridge(
     private fun options(optionsJson: String): JSONObject =
         if (optionsJson.isBlank()) JSONObject() else JSONObject(optionsJson)
 
+    /**
+     * `optString` renders a JSON `null` as the text "null", which would then be used
+     * as a host name, a device id or base64 data. Treat absent, null and blank alike.
+     */
+    private fun JSONObject.stringOrNull(name: String): String? =
+        if (!has(name) || isNull(name)) null else optString(name).takeIf { it.isNotBlank() }
+
     private fun run(requestId: String, action: suspend () -> JSONObject) {
         scope.launch {
             try {
                 resolve(requestId, action())
+            } catch (cancelled: CancellationException) {
+                // dispose() cancelled us: not a command failure, and there is no
+                // document left to show it to.
+                throw cancelled
             } catch (caught: Throwable) {
                 Log.w(TAG, "posPrinter command failed", caught)
                 reject(requestId, caught.message ?: caught.javaClass.simpleName)
@@ -108,7 +126,8 @@ class NativePrinterBridge(
     )
 
     private fun evaluate(script: String) {
-        webView.post { webView.evaluateJavascript(script, null) }
+        if (disposed) return
+        webView.post { if (!disposed) webView.evaluateJavascript(script, null) }
     }
 
     companion object {

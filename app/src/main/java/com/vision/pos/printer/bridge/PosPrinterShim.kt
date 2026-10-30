@@ -18,11 +18,16 @@ object PosPrinterShim {
 
   var pending = {};
   var sequence = 0;
+  // Request ids are tagged with this document's epoch: a reply that belongs to a page
+  // the operator already navigated away from can then never settle a new request.
+  var epoch = window.__posPrinterEpoch ||
+    ('pp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '-');
+  window.__posPrinterEpoch = epoch;
 
   function invoke(method, options) {
     var incoming = options || {};
     return new Promise(function (resolve, reject) {
-      var id = 'pp-' + (++sequence);
+      var id = epoch + (++sequence);
       pending[id] = { resolve: resolve, reject: reject, callback: incoming.callback };
       var payload = {};
       for (var key in incoming) {
@@ -46,11 +51,11 @@ object PosPrinterShim {
     var result;
     try { result = resultJson ? JSON.parse(resultJson) : undefined; } catch (ignore) { result = undefined; }
     if (result && result.success === false) {
-      if (typeof entry.callback === 'function') { entry.callback(result); }
+      try { if (typeof entry.callback === 'function') { entry.callback(result); } } catch (ignore) {}
       entry.reject(new Error(result.error || 'Printer command failed'));
       return;
     }
-    if (typeof entry.callback === 'function') { entry.callback(result); }
+    try { if (typeof entry.callback === 'function') { entry.callback(result); } } catch (ignore) {}
     entry.resolve(result);
   };
 
@@ -59,9 +64,13 @@ object PosPrinterShim {
     if (!entry) { return; }
     delete pending[id];
     var text = message;
-    try { var parsed = JSON.parse(message); text = (parsed && parsed.error) || message; } catch (ignore) {}
+    try { var parsed = JSON.parse(message); text = (parsed && typeof parsed.error === 'string' && parsed.error) || message; } catch (ignore) {}
     var error = new Error(text || 'Printer command failed');
-    if (typeof entry.callback === 'function') { entry.callback({ success: false, error: error.message }); }
+    // The callback runs first (unchanged), but a throw in POS code must not leave the
+    // promise unsettled: the entry is already gone, so nothing could ever settle it.
+    try {
+      if (typeof entry.callback === 'function') { entry.callback({ success: false, error: error.message }); }
+    } catch (ignore) {}
     entry.reject(error);
   };
 

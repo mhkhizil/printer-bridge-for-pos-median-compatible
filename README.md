@@ -30,7 +30,7 @@ convention used by the Median.co GoNative JavaScript bridge.
 - A hardened WebView: no file or content provider access, no geolocation, cleartext
   HTTP disabled, non-http schemes handed to the system, `allowBackup="false"`.
 - Recovery for the failures that actually happen on cheap tablets: an offline screen
-  with Retry, a hidden reload menu, and WebView renderer crash recovery.
+  with Refresh, a hidden reload menu, and WebView renderer crash recovery.
 - One Activity and one dependency set (AndroidX core, appcompat, activity,
   kotlinx-coroutines). No analytics, no network calls of its own.
 
@@ -193,9 +193,10 @@ Bump `versionCode` (and `versionName`) in `app/build.gradle.kts` for every uploa
 
 ## Automated builds (GitHub Actions)
 
-`.github/workflows/android.yml` builds the APKs on every push, so a fresh
-installable build no longer has to be made on a laptop. On `main` it also
-republishes the rolling **Latest build** release, and these links never change:
+`.github/workflows/android.yml` builds the APKs on every push to `main` and on
+every pull request, so a fresh installable build no longer has to be made on a
+laptop. On `main` it also republishes the rolling **Latest build** release, so
+these links always point at the newest build:
 
 ```
 https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-debug.apk
@@ -206,7 +207,7 @@ https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/la
 | --- | --- |
 | push to `main` | debug + release APKs built, artifact uploaded, rolling release refreshed |
 | pull request | debug + release APKs built, artifact uploaded for inspection only |
-| manual run | same as a push; the `pos_url` input overrides the baked-in URL |
+| manual run | same as a push, but only on `main` does it refresh the rolling release; the `pos_url` input overrides the baked-in URL |
 
 The APK records the POS URL it was built with, so CI needs one. Set it once as a
 repository variable (Settings > Secrets and variables > Actions > Variables):
@@ -215,8 +216,10 @@ repository variable (Settings > Secrets and variables > Actions > Variables):
 POS_URL = https://your-pos.example.com
 ```
 
-Two optional secrets make the release APK signed as well. Without them the release
-APK is unsigned, but `LinkitPOS-debug.apk` is always installable:
+Four optional secrets make the release APK signed as well. Without them the release
+APK is unsigned and is published as `LinkitPOS-release-unsigned.apk`, so the
+release link above only resolves once they are set; `LinkitPOS-debug.apk` is
+always installable:
 
 | Secret | Value |
 | --- | --- |
@@ -226,8 +229,9 @@ APK is unsigned, but `LinkitPOS-debug.apk` is always installable:
 | `ANDROID_KEY_PASSWORD` | the `keyPassword` |
 
 A CI-built APK is signed with a different key than a locally built one, so uninstall
-the old app once before installing the first CI build. Builds coming from CI install
-over each other normally.
+the old app once before installing the first CI build. `LinkitPOS-debug.apk` and
+`LinkitPOS-release.apk` are signed with different keys too, so a debug install
+cannot be upgraded into the release file: uninstall between those two as well.
 
 ## Branding
 
@@ -256,7 +260,7 @@ cd dist
 python -m http.server 8080
 
 # regenerate the QR whenever that address changes
-npx --yes qrcode -t png -w 512 -o install-qr.png "http://<laptop-ip>:8080/app-release.apk"
+npx --yes qrcode -t png -w 512 -o install-qr.png "http://<laptop-ip>:8080/LinkitPOS-<version>.apk"
 ```
 
 Scan the QR on each tablet and allow installing from unknown sources. Uninstall any
@@ -274,11 +278,12 @@ signing keys differ.
 - **Keyboard.** `windowSoftInputMode="adjustResize"`, so form fields stay above the
   keyboard instead of being covered by it.
 - **Reload.** There is no toolbar. Long press the top strip of the screen for about
-  1.5 seconds to open a small menu with *Reload POS*, *Clear cache and reload* and
+  1.5 seconds to open a small menu with *Reload POS*, *Clear cache & reload* and
   *Cancel*. The touch is not consumed, so the page keeps its own gestures.
-- **Orientation.** `sensorLandscape`: landscape either way up, not locked to one side.
-- **Offline.** A failed load shows a "Can't reach the POS" screen with a Retry button
-  instead of the raw WebView error page.
+- **Orientation.** `fullUser`: the shell follows the device rotation setting, so
+  the POS can be used in portrait as well as landscape.
+- **Offline.** A failed load shows a "Can't reach the POS" screen with a Refresh
+  button instead of the raw WebView error page.
 
 ## Troubleshooting
 

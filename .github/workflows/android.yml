@@ -18,10 +18,12 @@ on:
         required: false
         default: ""
 
-# A newer push replaces a queued build of the same branch instead of stacking up.
+# Builds for the same branch queue instead of cancelling each other: killing a run in
+# the middle of its publish step can leave the rolling "latest" release deleted but
+# not recreated, which 404s the download link shops install from.
 concurrency:
   group: android-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -36,10 +38,6 @@ jobs:
       # Baked into BuildConfig.POS_URL. Resolution in app/build.gradle.kts is
       # -PposUrl, POS_URL, local.properties; only the middle one exists here.
       POS_URL: ${{ inputs.pos_url || vars.POS_URL }}
-      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     outputs:
       version_name: ${{ steps.version.outputs.name }}
@@ -83,6 +81,16 @@ jobs:
       # upgradable over earlier installs. Without these secrets the build still
       # succeeds; the release APK is then unsigned (the debug APK always works).
       - name: Restore release keystore
+        # Pull requests can carry repository secrets when they come from branches in
+        # this repo, so never hand the production keystore to PR-controlled code.
+        # The secrets live on this step (not the job env) so the Gradle build that
+        # PR code can modify never sees them.
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "No ANDROID_KEYSTORE_BASE64 secret: the release APK will be unsigned."
@@ -126,8 +134,16 @@ jobs:
   publish:
     name: Publish latest APK
     needs: build
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # Only main may move the rolling "latest" release: a manual run from a feature
+    # branch used to republish it with untested APKs.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+
+    # Publishing is serialized independently of the build concurrency group, so two
+    # runs can never delete/recreate the rolling release at the same time.
+    concurrency:
+      group: rolling-latest
+      cancel-in-progress: false
 
     permissions:
       contents: write

@@ -19,6 +19,10 @@ class NetworkPrinterTransport {
             socket.getOutputStream().use { output ->
                 output.write(bytes)
                 output.flush()
+                // Half-close so the printer sees an explicit end of job. Best effort: a
+                // printer that already dropped the link must not turn a printed receipt
+                // into a reported failure (that would be reprinted).
+                runCatching { socket.shutdownOutput() }
             }
         }
     }

@@ -64,6 +64,9 @@ class MainActivity : AppCompatActivity() {
     /** True while the main page failed to load, so `onPageFinished` can't clear the error. */
     private var mainFrameFailed = false
 
+    /** True once the renderer is gone for good; a retry then has to rebuild the shell. */
+    private var rendererDead = false
+
     /** Resolves when the operator answers the runtime Bluetooth permission dialog. */
     private var pendingBluetoothPermission: CompletableDeferred<Boolean>? = null
 
@@ -261,6 +264,11 @@ class MainActivity : AppCompatActivity() {
                     recreate()
                     true
                 } else {
+                    // This WebView can never load again (reload() is a no-op on a dead
+                    // renderer), so keep the page for the rebuilt shell and let retry()
+                    // recreate the Activity instead.
+                    restoreUrl = view.url
+                    rendererDead = true
                     showError()
                     true
                 }
@@ -300,6 +308,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun retry() {
+        if (rendererDead) {
+            // Only a fresh Activity gets a live renderer; onDestroy() disposes the dead one.
+            recreate()
+            return
+        }
         showLoading()
         webView.reload()
     }
@@ -349,11 +362,19 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
         if (hasBluetoothPermission()) return true
 
-        val deferred = CompletableDeferred<Boolean>()
-        pendingBluetoothPermission = deferred
-        withContext(Dispatchers.Main) { bluetoothPermissionLauncher.launch(BLUETOOTH_PERMISSIONS) }
+        // Reuse the request that is already in flight: overwriting the slot would orphan
+        // the deferred a concurrent caller is awaiting and stall it for the full timeout.
+        val inFlight = pendingBluetoothPermission
+        val deferred: CompletableDeferred<Boolean>
+        if (inFlight != null) {
+            deferred = inFlight
+        } else {
+            deferred = CompletableDeferred()
+            pendingBluetoothPermission = deferred
+            withContext(Dispatchers.Main) { bluetoothPermissionLauncher.launch(BLUETOOTH_PERMISSIONS) }
+        }
         val answered = withTimeoutOrNull(PERMISSION_TIMEOUT_MS) { deferred.await() } ?: false
-        pendingBluetoothPermission = null
+        if (pendingBluetoothPermission === deferred) pendingBluetoothPermission = null
         return answered && hasBluetoothPermission()
     }
 
@@ -440,7 +461,9 @@ class MainActivity : AppCompatActivity() {
         private const val EMPTY_DOCUMENT_PROBE =
             "(function(){try{var b=document.body;" +
                 "return b?(b.innerText.trim().length+'|'+b.children.length):'0|0'}" +
-                "catch(e){return '0|0'}})()"
+                // A throwing probe must not look like an empty document: 'err' fails
+                // toIntOrNull() and verifyRendered leaves the page alone.
+                "catch(e){return 'err'}})()"
 
         /** Saved-instance-state key holding the page to resume. */
         private const val STATE_URL = "posUrlState"

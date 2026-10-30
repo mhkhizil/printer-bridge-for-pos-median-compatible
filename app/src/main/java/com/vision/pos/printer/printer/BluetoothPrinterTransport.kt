@@ -70,23 +70,34 @@ class BluetoothPrinterTransport(
             return@withContext
         }
 
-        try {
-            printClassic(localAdapter, device, bytes)
+        // Only the RFCOMM connect may fall back to BLE: a write/flush failure must surface as an
+        // error, because re-sending the whole receipt over GATT would double-print it.
+        val socket = try {
+            connectClassic(localAdapter, device)
         } catch (_: IOException) {
             // Dual-mode printers sometimes only accept the BLE GATT path.
             BlePrinterWriter(context).write(device, bytes)
+            return@withContext
         }
-    }
 
-    private fun printClassic(bluetoothAdapter: BluetoothAdapter, device: BluetoothDevice, bytes: ByteArray) {
-        runCatching { bluetoothAdapter.cancelDiscovery() }
-        val socket: BluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID)
         socket.use {
-            it.connect()
             it.outputStream.use { output ->
                 output.write(bytes)
                 output.flush()
             }
+        }
+    }
+
+    private fun connectClassic(bluetoothAdapter: BluetoothAdapter, device: BluetoothDevice): BluetoothSocket {
+        runCatching { bluetoothAdapter.cancelDiscovery() }
+        val socket: BluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID)
+        return try {
+            socket.connect()
+            socket
+        } catch (caught: Throwable) {
+            // Same cleanup `socket.use` gave us before the split; only IOException triggers BLE.
+            runCatching { socket.close() }
+            throw caught
         }
     }
 

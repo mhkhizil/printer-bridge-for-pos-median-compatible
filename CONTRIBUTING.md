@@ -17,9 +17,10 @@ Requirements: JDK 17+, Android SDK with `platforms;android-34` and
 
 On Unix, make the wrapper executable first: `chmod +x gradlew`.
 
-Every push and pull request builds the debug and release APKs in GitHub Actions
-(`.github/workflows/android.yml`). The release build is part of CI on purpose: it runs
-R8 and resource shrinking, so a broken keep rule for the JS bridge fails the build.
+Every push to `main` and every pull request builds the debug and release APKs in
+GitHub Actions (`.github/workflows/android.yml`). The release build is part of CI
+on purpose: it runs R8 and resource shrinking, so a broken keep rule for the JS
+bridge fails the build.
 Pushes to `main` also refresh the rolling **Latest build** release, so an installable
 APK is always available without building anything locally.
 

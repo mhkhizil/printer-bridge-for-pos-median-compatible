@@ -43,14 +43,20 @@ class BlePrinterWriter(private val context: Context) {
     private class GattSession(private val context: Context, private val device: BluetoothDevice) {
         private var gattRef: BluetoothGatt? = null
         private val ready = CompletableDeferred<Unit>()
-        private var writeSignal: CompletableDeferred<Unit>? = null
+        // Written on the IO coroutine, read on the callback thread: must be volatile.
+        @Volatile private var writeSignal: CompletableDeferred<Unit>? = null
+        @Volatile private var terminalFailure: Throwable? = null
 
         private val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> gatt.discoverServices()
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        if (!gatt.discoverServices()) {
+                            fail(IllegalStateException("BLE service discovery failed to start (status $status)"))
+                        }
+                    }
                     BluetoothProfile.STATE_DISCONNECTED ->
-                        fail(IllegalStateException("BLE link to ${device.address} dropped"))
+                        fail(IllegalStateException("BLE link to ${device.address} dropped (status $status)"))
                 }
             }
 
@@ -100,6 +106,8 @@ class BlePrinterWriter(private val context: Context) {
             characteristic: BluetoothGattCharacteristic,
             chunk: ByteArray,
         ) {
+            terminalFailure?.let { throw it } // a link that dropped between chunks must fail, not stall
+
             val signal = CompletableDeferred<Unit>()
             writeSignal = signal
 
@@ -120,9 +128,17 @@ class BlePrinterWriter(private val context: Context) {
                 @Suppress("DEPRECATION")
                 gatt.writeCharacteristic(characteristic)
             }
-            check(started) { "Unable to start BLE write" }
+            try {
+                check(started) { "Unable to start BLE write" }
 
-            withTimeout(WRITE_TIMEOUT_MS) { signal.await() }
+                withTimeout(WRITE_TIMEOUT_MS) { signal.await() }
+            } finally {
+                // Clear our own slot so it cannot outlive the chunk. A late duplicate
+                // callback is still credited to whatever chunk is currently waiting
+                // (GATT sends one response per default write), but the slot is never
+                // left pointing at a completed chunk.
+                if (writeSignal === signal) writeSignal = null
+            }
         }
 
         fun close(gatt: BluetoothGatt) {
@@ -131,6 +147,7 @@ class BlePrinterWriter(private val context: Context) {
         }
 
         private fun fail(caught: Throwable) {
+            terminalFailure = caught
             if (!ready.isCompleted) ready.completeExceptionally(caught)
             writeSignal?.completeExceptionally(caught)
         }

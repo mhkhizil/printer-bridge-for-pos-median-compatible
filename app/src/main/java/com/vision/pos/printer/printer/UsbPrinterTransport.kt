@@ -46,7 +46,10 @@ class UsbPrinterTransport(private val context: Context) {
             ?: error("Unable to open USB device ${deviceLabel(device)}")
 
         try {
-            val usbInterface = device.getInterface(0)
+            val usbInterface = (0 until device.interfaceCount)
+                .map { device.getInterface(it) }
+                .firstOrNull { bulkOutEndpoint(it) != null }
+                ?: error("No USB bulk OUT endpoint on ${deviceLabel(device)}")
             check(connection.claimInterface(usbInterface, true)) { "Unable to claim USB interface" }
             try {
                 val endpoint = bulkOutEndpoint(usbInterface)
@@ -82,7 +85,7 @@ class UsbPrinterTransport(private val context: Context) {
 
     private fun findDevice(manager: UsbManager, rawDeviceId: String): UsbDevice? {
         val devices = manager.deviceList.values.toList()
-        return devices.firstOrNull { deviceId(it) == rawDeviceId }
+        return devices.firstOrNull { deviceId(it).equals(rawDeviceId, ignoreCase = true) }
             ?: devices.firstOrNull { it.deviceName == rawDeviceId }
             ?: devices.firstOrNull { deviceLabel(it).equals(rawDeviceId, ignoreCase = true) }
     }

@@ -21,18 +21,21 @@ service/characteristic UUIDs.
 printer that is powered off or out of range can hold a job for around 12 seconds
 before the BLE fallback runs. Wi-Fi and USB fail fast (8 second connect timeout).
 
-**No HTTP error detection.** If the server answers the main frame with a 5xx or a
-maintenance page, the shell renders the server's own HTML. The built-in offline
-screen is driven by WebView load errors (`onReceivedError`), not HTTP status codes.
+**Only 5xx counts as an HTTP failure.** If the server answers the main frame with a
+5xx (a dead backend or a maintenance page), the offline screen is shown through
+`onReceivedHttpError`. A 4xx, or a 200 that serves a maintenance page, still
+renders the server's own HTML: everything else is driven by WebView load errors
+(`onReceivedError`), not HTTP status codes.
 
 **Ignoring `ERROR_UNKNOWN` is deliberate.** WebView reports `-1` for aborted
 navigations, such as redirects and download links, which is not an outage. A genuine
-failure reported as `-1` therefore shows a blank page instead of the retry screen;
-the hidden maintenance menu (long press the top strip) is the escape hatch.
+failure reported as `-1` is therefore left alone, and a document that renders
+nothing is caught by the empty-document check (`verifyRendered`); the hidden
+maintenance menu (long press the top strip) remains the escape hatch.
 
-**Not enabled on purpose.** `FLAG_SECURE` (blocks screenshots), kiosk/lock-task mode
-and `onSaveInstanceState` screen restoration. Add them only if a deployment needs
-them; kiosk mode in particular changes what the Back button does.
+**Not enabled on purpose.** `FLAG_SECURE` (blocks screenshots) and kiosk/lock-task
+mode. Add them only if a deployment needs them; kiosk mode in particular changes
+what the Back button does.
 
 **`targetSdk 34`.** Google Play requires new submissions to target API 35 or newer,
 which means bumping `compileSdk` and AGP and retesting. Direct APK distribution is
@@ -44,7 +47,6 @@ not pinned, so a very large system font scale can distort the POS layout.
 
 ## Ideas worth doing
 
-- Handle main-frame 5xx responses with the offline screen (`onReceivedHttpError`).
 - A self test in the maintenance menu that prints a short sample and cuts.
 - Predictive back support (`android:enableOnBackInvokedCallback`) and polish for it.
 - An iOS sibling exposing the same JS contract (NetworkExtension for TCP,
