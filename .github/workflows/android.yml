@@ -4,7 +4,7 @@ name: Android CI
 # "latest" GitHub release, so the newest installable APK is always one stable
 # link away and nobody has to build locally:
 #
-#   https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-debug.apk
+#   https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS.apk
 #
 # Pull requests build and upload the APK as a run artifact only.
 on:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       pos_url:
-        description: "POS URL baked into this build (blank: use the POS_URL repository variable)"
+        description: "POS URL baked into this build (blank: use POS_URL or https://app.mmlinkits.com)"
         required: false
         default: ""
 
@@ -35,9 +35,8 @@ jobs:
     timeout-minutes: 25
 
     env:
-      # Baked into BuildConfig.POS_URL. Resolution in app/build.gradle.kts is
-      # -PposUrl, POS_URL, local.properties; only the middle one exists here.
-      POS_URL: ${{ inputs.pos_url || vars.POS_URL }}
+      # Always bake in a real URL, even when no repository variable is configured.
+      POS_URL: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlinkits.com' }}
 
     outputs:
       version_name: ${{ steps.version.outputs.name }}
@@ -53,6 +52,17 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+
+      - name: Configure and validate Android SDK
+        run: |
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_DIR" ] || [ ! -d "$SDK_DIR" ]; then
+            echo "::error::ANDROID_HOME or ANDROID_SDK_ROOT must point to an installed Android SDK."
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK_DIR" >> "$GITHUB_ENV"
+          printf 'sdk.dir=%s\nposUrl=%s\n' "$SDK_DIR" "$POS_URL" > local.properties
+          echo "Using Android SDK: $SDK_DIR"
 
       # GitHub's ubuntu runners ship the Android SDK and cmdline-tools, so install the
       # exact packages this project targets. A third-party setup action is avoided on
@@ -108,13 +118,13 @@ jobs:
       # The release build is included on purpose: it runs R8 and resource
       # shrinking, which is what proves the keep rules for the JS bridge work.
       - name: Build debug and release APKs
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleDebug :app:assembleRelease "-PposUrl=$POS_URL" --no-daemon --stacktrace
 
       # Stable file names keep the release download URLs permanent.
       - name: Collect APKs
         run: |
           mkdir -p ci
-          cp app/build/outputs/apk/debug/app-debug.apk ci/LinkitPOS-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ci/LinkitPOS.apk
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
             cp app/build/outputs/apk/release/app-release.apk ci/LinkitPOS-release.apk
           elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
@@ -163,7 +173,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
           VERSION_CODE: ${{ needs.build.outputs.version_code }}
-          POS_URL_VALUE: ${{ inputs.pos_url || vars.POS_URL }}
+          POS_URL_VALUE: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlinkits.com' }}
         run: |
           REPO="$GITHUB_REPOSITORY"
 
@@ -176,7 +186,7 @@ jobs:
 
           | File | Use |
           | --- | --- |
-          | \`LinkitPOS-debug.apk\` | Always installable (debug key) |
+          | \`LinkitPOS.apk\` | Always installable (debug key; filename has no debug suffix) |
           | \`LinkitPOS-release.apk\` | Signed release build, only when the keystore secrets are configured |
 
           **Installing over an older copy:** this APK is signed with a different key

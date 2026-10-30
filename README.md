@@ -199,7 +199,7 @@ laptop. On `main` it also republishes the rolling **Latest build** release, so
 these links always point at the newest build:
 
 ```
-https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-debug.apk
+https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS.apk
 https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/latest/download/LinkitPOS-release.apk
 ```
 
@@ -209,17 +209,23 @@ https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/la
 | pull request | debug + release APKs built, artifact uploaded for inspection only |
 | manual run | same as a push, but only on `main` does it refresh the rolling release; the `pos_url` input overrides the baked-in URL |
 
-The APK records the POS URL it was built with, so CI needs one. Set it once as a
-repository variable (Settings > Secrets and variables > Actions > Variables):
+CI bakes `https://app.mmlinkits.com` into the APK by default. The manual `pos_url`
+input takes priority, followed by the optional `POS_URL` repository variable
+(Settings > Secrets and variables > Actions > Variables):
 
 ```
-POS_URL = https://your-pos.example.com
+POS_URL = https://app.mmlinkits.com
 ```
 
-Four optional secrets make the release APK signed as well. Without them the release
-APK is unsigned and is published as `LinkitPOS-release-unsigned.apk`, so the
-release link above only resolves once they are set; `LinkitPOS-debug.apk` is
-always installable:
+CI validates the runner's `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) and writes the
+actual `sdk.dir` and resolved `posUrl` into its ignored `local.properties`. Do not
+use the literal placeholder `sdk.dir=/path/to/Android/Sdk`.
+
+The four optional secrets below make the release APK signed as well. Without them
+the release APK is published as `LinkitPOS-release-unsigned.apk`, so the release
+link above only resolves once they are set. `LinkitPOS.apk` is always installable.
+Only its filename changed: it is still the debug-key-signed build, not a production
+release:
 
 | Secret | Value |
 | --- | --- |
@@ -229,7 +235,7 @@ always installable:
 | `ANDROID_KEY_PASSWORD` | the `keyPassword` |
 
 A CI-built APK is signed with a different key than a locally built one, so uninstall
-the old app once before installing the first CI build. `LinkitPOS-debug.apk` and
+the old app once before installing the first CI build. `LinkitPOS.apk` and
 `LinkitPOS-release.apk` are signed with different keys too, so a debug install
 cannot be upgraded into the release file: uninstall between those two as well.
 
