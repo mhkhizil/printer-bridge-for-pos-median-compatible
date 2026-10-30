@@ -45,7 +45,7 @@
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:exported="true"
             android:launchMode="singleTop"
-            android:screenOrientation="fullUser"
+            android:screenOrientation="sensorLandscape"
             android:windowSoftInputMode="adjustResize">
 
             <intent-filter>

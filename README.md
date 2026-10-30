@@ -280,8 +280,9 @@ signing keys differ.
 - **Reload.** There is no toolbar. Long press the top strip of the screen for about
   1.5 seconds to open a small menu with *Reload POS*, *Clear cache & reload* and
   *Cancel*. The touch is not consumed, so the page keeps its own gestures.
-- **Orientation.** `fullUser`: the shell follows the device rotation setting, so
-  the POS can be used in portrait as well as landscape.
+- **Orientation.** `sensorLandscape`: the app is landscape from launch and stays
+  landscape either way up, so a tablet can be mounted normal or flipped without
+  ever showing the POS in portrait.
 - **Offline.** A failed load shows a "Can't reach the POS" screen with a Refresh
   button instead of the raw WebView error page.
 
