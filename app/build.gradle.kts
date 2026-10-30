@@ -48,8 +48,11 @@ android {
         // copy be upgraded in place.
         //   1.0.1 = Linkit icon, overscroll reload fix, reliable offline/Refresh screen
         //   1.0.2 = on-demand reload button, responsive layout shim
-        versionCode = 3
-        versionName = "1.0.2"
+        //   1.0.3 = recovery and printing hardening: renderer-dead retry, shared Bluetooth
+        //           permission request, bridge promise/id fixes, USB interface lookup,
+        //           BLE link-drop reporting, no BLE reprint after a failed SPP write
+        versionCode = 4
+        versionName = "1.0.3"
 
         // Surfaced to the WebView as BuildConfig.POS_URL; see `posUrl` above.
         buildConfigField("String", "POS_URL", "\"$posUrl\"")
