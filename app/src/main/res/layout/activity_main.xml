@@ -56,4 +56,21 @@
             android:minWidth="160dp"
             android:text="@string/error_retry" />
     </LinearLayout>
+
+    <!--
+      On-demand reload, so a POS redeploy can be picked up without restarting the app.
+      Deliberately faint, and the tap is confirmed: an accidental touch mid-sale would
+      otherwise reload the page away underneath the operator.
+    -->
+    <ImageButton
+        android:id="@+id/refreshButton"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="8dp"
+        android:alpha="0.45"
+        android:background="@drawable/bg_refresh_button"
+        android:contentDescription="@string/refresh"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_refresh" />
 </FrameLayout>

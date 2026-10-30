@@ -16,10 +16,12 @@ import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -55,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loading: ProgressBar
     private lateinit var errorView: View
     private lateinit var errorMessage: TextView
+    private lateinit var refreshButton: ImageButton
 
     /** True while the main page failed to load, so `onPageFinished` can't clear the error. */
     private var mainFrameFailed = false
@@ -83,15 +86,33 @@ class MainActivity : AppCompatActivity() {
         errorView = findViewById(R.id.errorView)
         errorMessage = findViewById(R.id.errorMessage)
         findViewById<Button>(R.id.retryButton).setOnClickListener { retry() }
+        refreshButton = findViewById(R.id.refreshButton)
+        refreshButton.setOnClickListener { confirmReload() }
 
         configureWebView()
 
-        webView.loadUrl(BuildConfig.POS_URL)
+        // Resume the page the operator was on when the shell restarted: a renderer
+        // death leaves it in [restoreUrl], and an Android process kill leaves it in the
+        // saved instance state. Reloading BuildConfig.POS_URL instead is what used to
+        // drop them back on the login screen.
+        webView.loadUrl(
+            savedInstanceState?.getString(STATE_URL) ?: restoreUrl ?: BuildConfig.POS_URL,
+        )
+        restoreUrl = null
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideStatusBar()
+    }
+
+    /**
+     * Remembers the current page across a process death, so a low-memory kill on a
+     * cheap tablet does not send the operator back to the login screen.
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (::webView.isInitialized) outState.putString(STATE_URL, webView.url)
     }
 
     override fun onDestroy() {
@@ -134,6 +155,10 @@ class MainActivity : AppCompatActivity() {
             allowUniversalAccessFromFileURLs = false
         }
 
+        // The POS scrolls its own lists. The WebView's overscroll glow/stretch made
+        // scrolling a menu to its end look like the page had reloaded.
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+
         bridge = NativePrinterBridge(
             webView,
             PrinterManager(applicationContext) { requestBluetoothPermission() },
@@ -146,13 +171,16 @@ class MainActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
                 mainFrameFailed = false
                 view.evaluateJavascript(PosPrinterShim.JS, null)
+                view.evaluateJavascript(OVERSCROLL_CSS, null)
                 showLoading()
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
                 view.evaluateJavascript(PosPrinterShim.JS, null)
+                view.evaluateJavascript(OVERSCROLL_CSS, null)
                 if (!mainFrameFailed) hideLoading()
+                verifyRendered(view)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -190,6 +218,25 @@ class MainActivity : AppCompatActivity() {
             }
 
             /**
+             * A server that answers but is broken (a maintenance page, or a 5xx from a
+             * dead backend) is still a failure the operator has to be able to reload
+             * from, and it never reaches [onReceivedError] because the response itself
+             * is a valid one.
+             */
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: WebResourceRequest,
+                errorResponse: WebResourceResponse,
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                if (!request.isForMainFrame) return
+                if (errorResponse.statusCode >= 500) {
+                    mainFrameFailed = true
+                    showError()
+                }
+            }
+
+            /**
              * The renderer can be killed under memory pressure, which happens on cheap
              * tablets. Returning false here kills the app, so rebuild the shell instead.
              */
@@ -204,6 +251,7 @@ class MainActivity : AppCompatActivity() {
 
                 return if (rendererRestarts <= MAX_RENDERER_RESTARTS) {
                     // The dead WebView is destroyed in onDestroy().
+                    restoreUrl = view.url
                     recreate()
                     true
                 } else {
@@ -229,6 +277,7 @@ class MainActivity : AppCompatActivity() {
         errorView.visibility = View.GONE
         webView.visibility = View.VISIBLE
         loading.visibility = View.VISIBLE
+        refreshButton.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
@@ -240,11 +289,45 @@ class MainActivity : AppCompatActivity() {
         webView.visibility = View.GONE
         errorMessage.text = getString(R.string.error_body)
         errorView.visibility = View.VISIBLE
+        // The offline screen carries its own Refresh button; two would be confusing.
+        refreshButton.visibility = View.GONE
     }
 
     private fun retry() {
         showLoading()
         webView.reload()
+    }
+
+    /**
+     * Operator-triggered reload, for picking up a POS redeploy without restarting the
+     * app. Confirmed first, because a stray tap mid-sale would reload the page away
+     * underneath whoever is using it.
+     */
+    private fun confirmReload() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.refresh)
+            .setMessage(R.string.refresh_confirm)
+            .setPositiveButton(R.string.refresh) { _, _ -> retry() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Reload is the only way out of a POS that "loaded" but renders nothing, so treat
+     * an empty document as a failure. The check is deliberately strict (no text *and*
+     * no child elements) because a single-page app loads as an empty root element
+     * before its JavaScript mounts the real content.
+     */
+    private fun verifyRendered(view: WebView) {
+        view.evaluateJavascript(EMPTY_DOCUMENT_PROBE) { result ->
+            val parts = result?.trim('"')?.split('|').orEmpty()
+            val characters = parts.getOrNull(0)?.toIntOrNull() ?: return@evaluateJavascript
+            val children = parts.getOrNull(1)?.toIntOrNull() ?: return@evaluateJavascript
+            if (!mainFrameFailed && characters == 0 && children == 0) {
+                mainFrameFailed = true
+                showError()
+            }
+        }
     }
 
     private fun openExternally(uri: Uri) {
@@ -342,6 +425,33 @@ class MainActivity : AppCompatActivity() {
 
         @Volatile
         private var lastRendererRestartAt = 0L
+
+        /** Page to resume after a renderer restart; consumed once by onCreate. */
+        @Volatile
+        private var restoreUrl: String? = null
+
+        /** Reports the rendered document as "<text length>|<child element count>". */
+        private const val EMPTY_DOCUMENT_PROBE =
+            "(function(){try{var b=document.body;" +
+                "return b?(b.innerText.trim().length+'|'+b.children.length):'0|0'}" +
+                "catch(e){return '0|0'}})()"
+
+        /** Saved-instance-state key holding the page to resume. */
+        private const val STATE_URL = "posUrlState"
+
+        /**
+         * Injected on every page load. `overscroll-behavior:none` stops the document —
+         * or any inner scroller such as the side menu — from handing an overscroll
+         * gesture up to the WebView, which is what turns "scroll the menu to the end,
+         * then slide back to the top" into a pull-to-refresh that reloads the POS.
+         * Idempotent and silent: it retries until the document has a head to write to.
+         */
+        private const val OVERSCROLL_CSS =
+            "(function(){if(window.__posOverscrollFixed){return;}try{" +
+                "var s=document.createElement('style');" +
+                "s.textContent='html,body{overscroll-behavior:none}';" +
+                "var h=document.head||document.documentElement;if(!h){return;}" +
+                "h.appendChild(s);window.__posOverscrollFixed=true;}catch(e){}})();"
 
         const val PERMISSION_TIMEOUT_MS = 60_000L
         const val LONG_PRESS_MS = 1_500L

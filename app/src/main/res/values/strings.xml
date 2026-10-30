@@ -4,8 +4,13 @@
 
     <!-- Shown when the POS page itself cannot be loaded (offline / server down). -->
     <string name="error_title">Can\'t reach the POS</string>
-    <string name="error_body">Check the internet connection on this device, then try again.</string>
-    <string name="error_retry">Retry</string>
+    <string name="error_body">Check the internet connection on this device, then tap Refresh.</string>
+    <string name="error_retry">Refresh</string>
+
+    <!-- On-demand reload button, for picking up a POS redeploy without restarting. -->
+    <string name="refresh">Refresh</string>
+    <string name="refresh_confirm">Reload the POS now? Anything not yet saved on this screen will be lost.</string>
+
 
     <!-- Hidden maintenance menu (long-press the top edge of the screen). -->
     <string name="admin_reload">Reload POS</string>

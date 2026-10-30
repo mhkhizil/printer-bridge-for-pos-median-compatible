@@ -41,8 +41,12 @@ android {
         applicationId = "com.vision.pos.printer"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // Incremented for every upload: a higher versionCode is what lets an installed
+        // copy be upgraded in place.
+        //   1.0.1 = Linkit icon, overscroll reload fix, reliable offline/Refresh screen
+        //   1.0.2 = on-demand reload button
+        versionCode = 3
+        versionName = "1.0.2"
 
         // Surfaced to the WebView as BuildConfig.POS_URL; see `posUrl` above.
         buildConfigField("String", "POS_URL", "\"$posUrl\"")
