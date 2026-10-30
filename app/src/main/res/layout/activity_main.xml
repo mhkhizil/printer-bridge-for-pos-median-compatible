@@ -9,14 +9,30 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <ProgressBar
+    <!-- Loading state: brand logo above the spinner while the POS page loads. -->
+    <LinearLayout
         android:id="@+id/loading"
-        style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:indeterminateTint="#F59E0B"
-        android:visibility="gone" />
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="140dp"
+            android:layout_height="116dp"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/logo" />
+
+        <ProgressBar
+            android:id="@+id/loadingSpinner"
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:indeterminateTint="#F59E0B" />
+    </LinearLayout>
 
     <!-- Friendly offline / server-down screen (never show a raw WebView error page). -->
     <LinearLayout
@@ -28,6 +44,13 @@
         android:orientation="vertical"
         android:padding="32dp"
         android:visibility="gone">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="99dp"
+            android:layout_marginBottom="24dp"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/logo" />
 
         <TextView
             android:id="@+id/errorTitle"

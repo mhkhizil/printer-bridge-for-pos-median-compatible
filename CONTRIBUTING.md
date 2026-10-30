@@ -20,6 +20,12 @@ On Unix, make the wrapper executable first: `chmod +x gradlew`.
 Every push and pull request builds the debug and release APKs in GitHub Actions
 (`.github/workflows/android.yml`). The release build is part of CI on purpose: it runs
 R8 and resource shrinking, so a broken keep rule for the JS bridge fails the build.
+Pushes to `main` also refresh the rolling **Latest build** release, so an installable
+APK is always available without building anything locally.
+
+Launcher icons, the splash screen and the in-app logo are generated from
+`logos/logo.png`. Replace that file and run `python tools/generate-icons.py` (Pillow)
+instead of editing the per-density PNGs by hand.
 
 ## What to check before opening a pull request
 

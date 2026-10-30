@@ -1,0 +1,11 @@
+<resources>
+    <!-- v31+: Android 12+ always shows its own splash screen, so hand it the brand
+         logo instead of the app icon and keep the window behind it a flat navy.
+         Repeats the cutout item because this file overrides values-v27. -->
+    <style name="Theme.LinkitPos" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/logo</item>
+    </style>
+</resources>

@@ -7,17 +7,20 @@ plugins {
 
 // URL the WebView loads. Resolution order: -PposUrl, the POS_URL environment
 // variable, posUrl in local.properties (machine-local, git-ignored), then the
-// placeholder below:
+// placeholder below. Blank values are skipped, so an unset POS_URL in CI (for
+// example an empty repository variable) falls through instead of producing an
+// empty BuildConfig.POS_URL:
 //   ./gradlew :app:assembleDebug -PposUrl=https://pos.example.com
 //   POS_URL=https://pos.example.com ./gradlew :app:assembleDebug
 val localPropertiesFile = rootProject.file("local.properties")
 val localProperties = Properties().apply {
     if (localPropertiesFile.exists()) localPropertiesFile.inputStream().use { load(it) }
 }
-val posUrl: String = (findProperty("posUrl") as String?)
-    ?: System.getenv("POS_URL")
-    ?: localProperties.getProperty("posUrl")
-    ?: "https://pos.example.com"
+val posUrl: String = listOfNotNull(
+    (findProperty("posUrl") as String?)?.takeIf { it.isNotBlank() },
+    System.getenv("POS_URL")?.takeIf { it.isNotBlank() },
+    localProperties.getProperty("posUrl")?.takeIf { it.isNotBlank() },
+).firstOrNull() ?: "https://pos.example.com"
 
 // Release signing. Create `keystore.properties` in the repo root (it is
 // git-ignored, never commit it). `storeFile` is relative to the repo root:
@@ -41,8 +44,8 @@ android {
         applicationId = "com.vision.pos.printer"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         // Surfaced to the WebView as BuildConfig.POS_URL; see `posUrl` above.
         buildConfigField("String", "POS_URL", "\"$posUrl\"")
