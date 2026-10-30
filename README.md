@@ -209,12 +209,12 @@ https://github.com/mhkhizil/printer-bridge-for-pos-median-compatible/releases/la
 | pull request | debug + release APKs built, artifact uploaded for inspection only |
 | manual run | same as a push, but only on `main` does it refresh the rolling release; the `pos_url` input overrides the baked-in URL |
 
-CI bakes `https://app.mmlinkits.com` into the APK by default. The manual `pos_url`
+CI bakes `https://app.mmlnkits.com` into the APK by default. The manual `pos_url`
 input takes priority, followed by the optional `POS_URL` repository variable
 (Settings > Secrets and variables > Actions > Variables):
 
 ```
-POS_URL = https://app.mmlinkits.com
+POS_URL = https://app.mmlnkits.com
 ```
 
 CI validates the runner's `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) and writes the

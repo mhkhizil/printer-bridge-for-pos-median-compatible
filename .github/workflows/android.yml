@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       pos_url:
-        description: "POS URL baked into this build (blank: use POS_URL or https://app.mmlinkits.com)"
+        description: "POS URL baked into this build (blank: use POS_URL or https://app.mmlnkits.com)"
         required: false
         default: ""
 
@@ -36,7 +36,7 @@ jobs:
 
     env:
       # Always bake in a real URL, even when no repository variable is configured.
-      POS_URL: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlinkits.com' }}
+      POS_URL: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlnkits.com' }}
 
     outputs:
       version_name: ${{ steps.version.outputs.name }}
@@ -173,7 +173,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
           VERSION_CODE: ${{ needs.build.outputs.version_code }}
-          POS_URL_VALUE: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlinkits.com' }}
+          POS_URL_VALUE: ${{ inputs.pos_url || vars.POS_URL || 'https://app.mmlnkits.com' }}
         run: |
           REPO="$GITHUB_REPOSITORY"
 
