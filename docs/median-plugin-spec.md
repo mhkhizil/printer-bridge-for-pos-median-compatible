@@ -80,7 +80,7 @@ it back as `printRaw.deviceId`.
 
 | Transport | `discover().devices[].id` | `name` |
 | --- | --- | --- |
-| USB | `usb:<vendorId>:<productId>` lowercase hex, 4 digits each, for example `usb:04b8:0e15` | product or manufacturer name, else the id |
+| USB | `usb:<vendorId>:<productId>` lowercase hex, 4 digits each, for example `usb:04b8:0e15` (always ASCII, never locale digits) | product or manufacturer name, else the id |
 | Bluetooth | the MAC address, for example `66:12:AB:34:CD:EF` | device name, else the MAC |
 | NETWORK | none, the list is empty | none |
 
@@ -102,8 +102,10 @@ Being tolerant of the label being sent back instead of the id is a nice-to-have.
 - Request the per-device runtime permission and wait for the operator, up to 30
   seconds. If it is denied: `USB permission was denied for <label>. Accept the system
   prompt and try again.`
-- Open the device, claim interface 0, use the first bulk OUT endpoint (otherwise
-  `No USB bulk OUT endpoint on <label>`), write in 16 KB chunks, then release and close.
+- Open the device, claim the printer-class interface (class 7) that owns a bulk OUT
+  endpoint, or failing that the first interface with a bulk OUT endpoint (otherwise
+  `No USB bulk OUT endpoint on <label>`), write in 16 KB chunks, then release and
+  close. Jobs are queued, because a USB interface can only be claimed by one writer.
 
 **BLUETOOTH, classic SPP first with a BLE GATT fallback**
 

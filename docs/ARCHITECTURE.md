@@ -46,7 +46,7 @@ ends up with exactly one live bridge.
 | Transport | How | Failure mode |
 | --- | --- | --- |
 | `NETWORK` | `java.net.Socket` to `host:port`, 8 s connect timeout, then write and flush | Throws with the message the POS displays |
-| `USB` | `UsbManager` device lookup, per-device permission prompt, `claimInterface`, first bulk OUT endpoint, 16 KB chunks | Denied permission or missing endpoint becomes a readable error |
+| `USB` | `UsbManager` device lookup, per-device permission prompt, `claimInterface` on the printer-class interface (first one with a bulk OUT endpoint otherwise), 16 KB chunks, one job at a time | Denied permission or missing endpoint becomes a readable error |
 | `BLUETOOTH` | `createRfcommSocketToServiceRecord` (SPP) first; on `IOException` or an LE-only device, BLE GATT to the first writable characteristic in 20 byte chunks | Unpaired device, dropped link or missing characteristic becomes a readable error |
 
 `connect` and `disconnect` deliberately resolve `{ success: true }` without doing

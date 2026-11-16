@@ -52,8 +52,12 @@ android {
         //           permission request, bridge promise/id fixes, USB interface lookup,
         //           BLE link-drop reporting, no BLE reprint after a failed SPP write
         //   1.0.4 = landscape-locked UI from launch
-        versionCode = 5
-        versionName = "1.0.4"
+        //   1.0.5 = USB printing reliability: job queueing around the exclusive interface claim,
+        //           printer-class interface preference, permission result polled from the system
+        //           instead of relying on the broadcast alone, openDevice retry, tolerant device
+        //           id matching, UsbPrinterTransport logcat trail
+        versionCode = 6
+        versionName = "1.0.5"
 
         // Surfaced to the WebView as BuildConfig.POS_URL; see `posUrl` above.
         buildConfigField("String", "POS_URL", "\"$posUrl\"")
